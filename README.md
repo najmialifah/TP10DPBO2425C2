@@ -12,25 +12,11 @@ Aplikasi berbasis web ini dikembangkan menggunakan PHP Native dan **Pola Arsitek
 
 Proyek ini disusun berdasarkan pemisahan tanggung jawab MVVM:
 
-* **`TP10/config/`**
-    * `Database.php`: Kelas untuk membuat koneksi tunggal ke database menggunakan **PDO**.
-
-* **`TP10/models/` (Model)**
-    * Bertanggung jawab langsung untuk berinteraksi dengan tabel database, menjalankan operasi **CRUD (Create, Read, Update, Delete)**.
-    * Meliputi kelas `Grup`, `Member`, `Album`, `Acara`, dan `Penjualan`.
-
-* **`TP10/viewmodels/` (ViewModel)**
-    * Berfungsi sebagai jembatan antara Model dan View.
-    * Memuat data dari Model (`loadAllGrup`, `loadGrup`).
-    * Menangani logika bisnis, seperti validasi form dan memproses *form submission* (`handleFormSubmission`).
-    * Mengelola pesan sukses dan error (`successMessage`, `errorMessage`) untuk ditampilkan di View.
-
-* **`TP10/views/` (View)**
-    * Berisi *template* PHP/HTML yang menampilkan antarmuka pengguna (daftar data dan form).
-    * Mengakses properti yang telah diolah oleh ViewModel (e.g., `$viewModel->grupList`).
-
-* **`TP10/index.php`**
-    * Berfungsi sebagai **Router** utama, memuat ViewModel dan View yang sesuai berdasarkan parameter `page` dan `action` dari URL.
+* **`TP10/config/`**: Konfigurasi database.
+* **`TP10/models/`**: Logika akses data (CRUD).
+* **`TP10/viewmodels/`**: Logika bisnis dan data presentasi.
+* **`TP10/views/`**: Antarmuka pengguna (HTML/PHP).
+* **`TP10/index.php`**: Router utama aplikasi.
 
 ***
 
@@ -58,17 +44,59 @@ Aplikasi menggunakan database bernama `db_kpop` dengan relasi antar tabel sebaga
 | **`acara`** | `id` | `id_grup` | `grup` |
 | **`penjualan`** | `id` | `id_album` | `album` |
 
-*Tabel `member`, `album`, dan `acara` memiliki relasi *one-to-many* ke tabel `grup`, sedangkan tabel `penjualan` memiliki relasi *one-to-many* ke tabel `album`*.
+***
 
-### Detail Khusus Model
+## 4. Penjelasan Kode Program (Tinjauan Arsitektur MVVM)
 
-* **Model `Album`**: Data daftar album diurutkan berdasarkan `tgl_rilis` (Tanggal Rilis) secara menurun (`DESC`), kemudian berdasarkan `id` secara menurun (`DESC`).
-* **Model `Penjualan`**: Data penjualan diurutkan berdasarkan `id` penjualan secara menaik (`ASC`).
-* **Model `Acara`**: Data acara diurutkan berdasarkan `id` acara secara menaik (`ASC`).
+### 4.1. Konfigurasi (`TP10/config/Database.php`)
+
+Kelas `Database` bertanggung jawab untuk koneksi database.
+
+* Menggunakan PHP Data Objects (**PDO**) untuk koneksi, memastikan keamanan dan portabilitas.
+* Metode `getConnection()` mengembalikan objek koneksi database (`$this->conn`) yang siap digunakan oleh kelas Model.
+
+### 4.2. Model (`TP10/models/`)
+
+Setiap kelas Model (e.g., `Grup.php`, `Album.php`) mewakili satu tabel database.
+
+* **Tanggung Jawab**: Melakukan semua operasi CRUD dengan mengeksekusi *raw* SQL queries menggunakan koneksi PDO.
+* **Keamanan**: Sebelum eksekusi `create()` atau `update()`, nilai properti objek (misalnya, `$this->nama_grup`) disanitasi menggunakan `htmlspecialchars(strip_tags())` untuk mitigasi *Cross-Site Scripting* (XSS), meskipun PDO binding sudah memberikan perlindungan SQL Injection.
+* **Relasi**: Metode `readAll()` dalam Model untuk entitas yang memiliki Foreign Key (seperti `Album.php` atau `Penjualan.php`) menggunakan klausa **`LEFT JOIN`** untuk mengambil data dari tabel terkait (misalnya, nama grup dari tabel `grup`).
+
+### 4.3. ViewModel (`TP10/viewmodels/`)
+
+ViewModel berfungsi sebagai otak aplikasi, mengelola data yang disajikan dan logika formulir.
+
+* **Pengumpulan Data**: ViewModel memuat data dari Model yang diperlukan untuk tampilan (e.g., `GrupViewModel` memanggil `Grup->readAll()` dan menyimpan hasilnya di `$this->grupList`).
+* **Foreign Key (FK) Options**: ViewModel seperti `AlbumViewModel` dan `PenjualanViewModel` secara otomatis memuat daftar opsi FK (misalnya, `$this->grupOptions` atau `$this->albumOptions`) dari Model terkait di konstruktor mereka untuk digunakan dalam dropdown formulir.
+* **Penanganan Formulir (`handleFormSubmission`)**: Metode ini melakukan validasi input wajib, dan kemudian memutuskan apakah akan melakukan operasi **Create** (jika tidak ada ID) atau **Update** (jika ada ID) pada Model.
+
+### 4.4. View (`TP10/views/`)
+
+File View hanya berisi kode presentasi HTML/PHP dan tidak mengandung logika bisnis atau akses database.
+
+* **Tampilan Daftar (`_list.php`)**: Memuat ViewModel, memanggil metode `loadAll...()`, dan melakukan perulangan (`foreach`) pada properti daftar ViewModel (e.g., `$viewModel->grupList`) untuk merender baris tabel.
+* **Tampilan Formulir (`_form.php`)**:
+    * Menggunakan variabel `$is_edit` untuk menyesuaikan judul dan menampilkan *hidden input* ID.
+    * Formulir disubmit via **POST** ke dirinya sendiri, di mana ViewModel akan memprosesnya.
+    * Bidang input diisi dengan nilai dari ViewModel (e.g., `value="<?php echo htmlspecialchars($viewModel->nama_grup ?? ''); ?>"`) untuk mempertahankan data saat error atau saat mode Edit.
+    * Formulir dengan FK (seperti `penjualan_form.php`) merender dropdown `<select>` dengan mengiterasi `$viewModel->albumOptions`, menampilkan judul album dan nama grup untuk memudahkan pengguna memilih.
+
+### 4.5. Router Utama (`TP10/index.php`)
+
+Ini adalah *Controller* yang menentukan halaman mana yang akan dimuat.
+
+* **Routing**: Menggunakan `$_GET['page']` dan `$_GET['action']` untuk menentukan entitas dan operasi yang diminta (list, create, edit, delete).
+* **Flow Kontrol**:
+    1.  Memuat semua kelas ViewModel.
+    2.  Mengecek dan mendekode pesan sukses (`$message`) dari URL.
+    3.  Menginstansiasi ViewModel yang sesuai.
+    4.  Untuk operasi `delete`, ia memanggil `handleDelete()` pada ViewModel dan melakukan **redirect** ke halaman daftar untuk menghindari permintaan ulang (`header("Location: ...")`).
+    5.  Untuk `list`, `create`, atau `edit`, ia menyertakan (`include`) file View yang relevan.
 
 ***
 
-## 4. Teknologi yang Digunakan
+## 5. Teknologi yang Digunakan
 
 | Komponen | Deskripsi |
 | :--- | :--- |
