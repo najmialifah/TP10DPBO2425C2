@@ -1,8 +1,8 @@
 # TP10DPBO2425C2: Aplikasi Manajemen Data K-Pop (Pola MVVM)
 
-## Tugas Praktikum 8 DPBO
+## Tugas Praktikum 10 DPBO
 
-Saya **Najmi Alifah Hilmiya** dengan **NIM 2410393** mengerjakan **Tugas Praktikum 8** dalam mata kuliah *Desain Pemrograman Berorientasi Objek* untuk keberkahan-Nya, maka saya tidak melakukan kecurangan seperti yang telah dispesifikasikan. **Aamiin.**
+Saya **Najmi Alifah Hilmiya** dengan **NIM 2410393** mengerjakan **Tugas Praktikum 10** dalam mata kuliah *Desain Pemrograman Berorientasi Objek* untuk keberkahan-Nya, maka saya tidak melakukan kecurangan seperti yang telah dispesifikasikan. **Aamiin.**
 
 Aplikasi berbasis web ini dikembangkan menggunakan PHP Native dan **Pola Arsitektur Model-View-ViewModel (MVVM)** untuk mengelola data terkait dunia K-Pop, meliputi informasi grup, member, album, acara, dan data penjualan.
 
